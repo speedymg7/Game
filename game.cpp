@@ -2,7 +2,6 @@
 #include <string>
 #include <unordered_map>
 #include <algorithm>
-#include <vector>
 #include <random>
 #include <filesystem>
 #include <fstream>
@@ -20,7 +19,6 @@ struct CoordHash {
         return hash<int>{}(c.x) ^ (hash<int>{}(c.y) << 1);
     }
 };
-
 
 class Room {
 public:
@@ -65,9 +63,42 @@ bool contains(string s1, string s2) {
     return false;
 }
 
+void deleteRoom(Coord c, Coord pos) {
+    if(Room::coordinates.empty()) {
+        cout << endl << "Cannot delete room; hashmap is empty" << endl << endl;
+        return;
+    }
+    if(c == pos) {
+        cout << endl << "Cannot delete room; must move to different room" << endl << endl;
+        return;
+    }
+    try {
+        Room* tempRoom = Room::coordinates.at(c);
+        if(tempRoom->north != nullptr) {
+            tempRoom->north->south = nullptr;
+        }
+        if(tempRoom->south != nullptr) {
+            tempRoom->south->north = nullptr;
+        }
+        if(tempRoom->east != nullptr) {
+            tempRoom->east->west = nullptr;
+        }
+        if(tempRoom->west != nullptr) {
+            tempRoom->west->east = nullptr;
+        }
+        delete tempRoom;
+        Room::coordinates.erase(c);
+        cout << endl << "Room at (" << c.x << "," << c.y << ") deleted" << endl << endl;
+
+    } catch(const out_of_range& e) {
+        cout << endl << "Cannot delete room; room does not exist" << endl << endl;
+        return;
+    }
+}
+
 void destroyCoordinates() {
     if(Room::coordinates.empty()) {
-        cout << "Cannot delete rooms; hashmap is empty" << endl << endl;
+        cout << endl << "Cannot delete rooms; hashmap is empty" << endl << endl;
         return;
     }
     for(const auto& pair : Room::coordinates) {
@@ -75,6 +106,41 @@ void destroyCoordinates() {
     }
     Room::coordinates.clear();
 }
+
+
+// prunes out rooms that are connected in all four directions; can create floating islands but no floating island of single room
+void destroyStronglyConnected(Coord pos) {
+    if(Room::coordinates.empty()) {
+        cout << endl << "Cannot delete rooms; hashmap is empty" << endl << endl;
+        return;
+    }
+    for(const auto& pair : Room::coordinates) {
+        if(pair.first == pos) {
+            continue;
+        }
+        if(pair.second->north != nullptr && pair.second->south != nullptr && pair.second->east != nullptr && pair.second->west != nullptr) {
+            if(pair.second->north->north == nullptr && pair.second->north->east == nullptr && pair.second->north->west == nullptr) {
+                continue;
+            }
+            if(pair.second->south->south == nullptr && pair.second->south->east == nullptr && pair.second->south->west == nullptr) {
+                continue;
+            }
+            if(pair.second->east->north == nullptr && pair.second->east->south == nullptr && pair.second->east->east == nullptr) {
+                continue;
+            }
+            if(pair.second->west->north == nullptr && pair.second->west->south == nullptr && pair.second->west->west == nullptr) {
+                continue;
+            }
+            pair.second->north->south = nullptr;
+            pair.second->south->north = nullptr;
+            pair.second->east->west = nullptr;
+            pair.second->west->east = nullptr;
+            delete pair.second;
+            Room::coordinates.erase(pair.first);
+        }
+    }
+}
+
 
 random_device rd;
 mt19937 randGen(rd());
@@ -259,10 +325,11 @@ bool fileNameValidator(string s) {
 }
 
 
-void saveState(string fileName, string p = "State") {
+void saveState(string fileName) {
     ofstream ofile(fileName, ios::binary);
     if(!ofile) {
         cout << endl << "Error opening file" << endl << endl;
+        ofile.close();
         return;
     }
 
@@ -307,13 +374,14 @@ void saveState(string fileName, string p = "State") {
 
         if(!ofile) {
             cout << endl << "Error writing to file" << endl << endl;
+            ofile.close();
             return;
         }
         
     }
     ofile.close();
 
-    cout << endl << p << " saved to " << fileName << endl << endl;
+    cout << endl << "State saved to " << fileName << endl << endl;
 }
 void readState(string fileName, Room*& h, int& cx, int& cy) {
 
@@ -325,6 +393,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
 
     if(!ifile) {
         cout << endl << "Error opening file" << endl << endl;
+        ifile.close();
         return;
     }
     int c1;
@@ -346,6 +415,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
 
         if(!ifile) {
             cout << endl << "Error reading the file" << endl << endl;
+            ifile.close();
             return;
         }
         try {
@@ -391,6 +461,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
 
         if(!ifile) {
             cout << endl << "Error reading the file" << endl << endl;
+            ifile.close();
             return;
         }
     }
@@ -465,6 +536,7 @@ bool coordValidator(string t) {
 string initializeMap() {
     if(!filesystem::exists("mapTemplate.html")) {
         cout << "Error: mapTemplate.html does not exist";
+        destroyCoordinates();
         exit(EXIT_FAILURE);
     }
     string fileName = "map.html";
@@ -480,13 +552,14 @@ string initializeMap() {
         filesystem::copy_file("mapTemplate.html", fileName);
     } catch(const filesystem::filesystem_error& e) {
         cout << "Error duplicating mapTemplate.html";
+        destroyCoordinates();
         exit(EXIT_FAILURE);
     }
     return fileName;
 }
 
 
-void drawMap(string fileName, int roomSide = 200, int hallLength = 60, int hallWidth = 16, int wLine = 4, string color = "blue") {
+void drawMap(string fileName, Coord center = {0,0}, int roomSide = 30, int hallLength = 10, int hallWidth = 4, int wLine = 1, string color = "blue") {
     if(!filesystem::exists(fileName)) {
         cout << endl << "Error: " << fileName << " does not exist" << endl << endl;
         return;
@@ -507,6 +580,7 @@ void drawMap(string fileName, int roomSide = 200, int hallLength = 60, int hallW
     fstream file(fileName, ios::app);
     if(!file) {
         cout << endl << "Error opening file" << endl << endl;
+        file.close();
         return;
     }
 
@@ -525,22 +599,18 @@ void drawMap(string fileName, int roomSide = 200, int hallLength = 60, int hallW
 
     if(!file) {
         cout << endl << "Error writing to map file" << endl << endl;
+        file.close();
         return;
     }
 
-    Coord center;
-    bool centerInit = false;
-    if(Room::coordinates.find({0,0}) != Room::coordinates.end()) {
-        center = {0,0};
-        centerInit = true;
+    if(Room::coordinates.find(center) == Room::coordinates.end()) {
+        cout << endl << "Center coordinates do not exist in coordinates map; map not made" << endl << endl;
+        file.close();
+        return;
     }
     int offsetX;
     int offsetY;
     for(const auto& pair : Room::coordinates) {
-        if(!centerInit) {
-            center = pair.first;
-            centerInit = true;
-        }
         offsetX = (pair.first.x - center.x) * (2 * hallLength + roomSide);
         offsetY = (pair.first.y - center.y) * (2 * hallLength + roomSide);
         file << "    drawRoom(";
@@ -572,6 +642,7 @@ void drawMap(string fileName, int roomSide = 200, int hallLength = 60, int hallW
 
         if(!file) {
             cout << endl << "Error writing to map file" << endl << endl;
+            file.close();
             return;
         }
     }
@@ -582,285 +653,9 @@ void drawMap(string fileName, int roomSide = 200, int hallLength = 60, int hallW
 
     if(!file) {
         cout << endl << "Error writing to map file" << endl << endl;
-        return;
     }
     file.close();
 }
-
-
-
-vector<string> map = {
-    "* * * * * *",
-    "*         *",
-    "*   0,0   *",
-    "*         *",
-    "* * * * * *"
-};
-
-void mapSearch(int xc, int yc, int& row, int& col) {
-    string tempCoord = int_to_coord(xc, yc);
-
-    for(int i = 0; i < map.size(); i++) {
-        for(int j = 0; j < 1 + (map[i].length() - tempCoord.length()); j++) {
-            if(map[i].substr(j, tempCoord.length()) == tempCoord) {
-                int k = 1;
-                while(tempCoord[k] != ',') {
-                    k++;
-                }
-                row = i;
-                col = j + k;
-                return;
-            }
-        }
-    }
-}
-
-string mapCoordinatePadding(string s) {
-    string newString = s;
-    for(int i = 0; i < s.length(); i++) {
-        if(s[i] == ',') {
-            for(int w = 0; w < 4 - i; w++) {
-                newString = " " + newString;
-            }
-            for(int k = 0; k < 4 - (s.length() - i - 1); k++) {
-                newString += " ";
-            }
-        }
-    }
-    newString += "*";
-    newString = "*" + newString;
-    return newString;
-    
-}
-
-void addMap(string dir, int xc, int yc) {
-    int row;
-    int col;
-    mapSearch(xc, yc, row, col);
-    
-    if(dir == "n") {
-        string tempCoord = int_to_coord(xc, yc + 1);
-        tempCoord = mapCoordinatePadding(tempCoord);
-        
-        
-        if(row - 2 == 0) {
-            string tempS;
-            for(int i = 0; i < xc; i++) {
-                tempS += "                 ";
-            }
-            map.insert(map.begin() + row - 2, tempS + "    | |    ");
-            map.insert(map.begin() + row - 2, tempS + "    | |    ");
-            map.insert(map.begin() + row - 2, tempS + "* * * * * *");
-            map.insert(map.begin() + row - 2, tempS + "*         *");
-            map.insert(map.begin() + row - 2, tempS + tempCoord);
-            map.insert(map.begin() + row - 2, tempS + "*         *");
-            map.insert(map.begin() + row - 2, tempS + "* * * * * *");
-        } else if(col < map[row - 3].length()) {
-            map[row - 3].replace(col - 1, 3, "| |");
-            map[row - 4].replace(col - 1, 3, "| |");
-            map[row - 5].replace(col - 5, 11, "* * * * * *");
-            map[row - 6].replace(col - 5, 11, "*         *");
-            map[row - 7].replace(col - 5, 11, tempCoord);
-            map[row - 8].replace(col - 5, 11, "*         *");
-            map[row - 9].replace(col - 5, 11, "* * * * * *");
-            
-        } else {
-            int i = map[row - 3].length();
-            string tempS = "";
-            while(i != col - 1) {
-                tempS += " ";
-                i++;
-            }
-            map[row - 3] += tempS;
-            map[row - 3] += "| |    ";
-            
-            map[row - 4] += tempS;
-            map[row - 4] += "| |    ";
-            
-            tempS = tempS.substr(0, tempS.length() - 4);
-            
-            map[row - 5] += tempS;
-            map[row - 5] += "* * * * * *";
-            
-            map[row - 6] += tempS;
-            map[row - 6] += "*         *";
-            
-            map[row - 7] += tempS;
-            map[row - 7] += tempCoord;
-            
-            map[row - 8] += tempS;
-            map[row - 8] += "*         *";
-            
-            map[row - 9] += tempS;
-            map[row - 9] += "* * * * * *";
-            
-        }
-
-    } else if(dir == "s") {
-        string tempCoord = int_to_coord(xc, yc - 1);
-        tempCoord = mapCoordinatePadding(tempCoord);
-        
-        if(row + 3 == map.size()) {
-            
-            string tempS = "";
-            for(int i = 0; i < col - 5; i++) {
-                tempS += " ";
-            }
-            map.insert(map.begin() + row + 3, tempS + "* * * * * *");
-            map.insert(map.begin() + row + 3, tempS + "*         *");
-            map.insert(map.begin() + row + 3, tempS + tempCoord);
-            map.insert(map.begin() + row + 3, tempS + "*         *");
-            map.insert(map.begin() + row + 3, tempS + "* * * * * *");
-            map.insert(map.begin() + row + 3, tempS + "    | |    ");
-            map.insert(map.begin() + row + 3, tempS + "    | |    ");
-        } else if(col < map[row + 3].length()) {
-            
-            map[row + 3].replace(col - 1, 3, "| |");
-            map[row + 4].replace(col - 1, 3, "| |");
-            map[row + 5].replace(col - 5, 11, "* * * * * *");
-            map[row + 6].replace(col - 5, 11, "*         *");
-            map[row + 7].replace(col - 5, 11, tempCoord);
-            map[row + 8].replace(col - 5, 11, "*         *");
-            map[row + 9].replace(col - 5, 11, "* * * * * *");
-           
-        } else {
-            
-            int i = map[row + 3].length();
-            string tempS = "";
-            while(i != col - 1) {
-                tempS += " ";
-                i++;
-            }
-            map[row + 3] += tempS;
-            map[row + 3] += "| |    ";
-            
-            map[row + 4] += tempS;
-            map[row + 4] += "| |    ";
-            
-            tempS = tempS.substr(0, tempS.length() - 4);
-            
-            map[row + 5] += tempS;
-            map[row + 5] += "* * * * * *";
-            
-            map[row + 6] += tempS;
-            map[row + 6] += "*         *";
-            
-            map[row + 7] += tempS;
-            map[row + 7] += tempCoord;
-            
-            map[row + 8] += tempS;
-            map[row + 8] += "*         *";
-            
-            map[row + 9] += tempS;
-            map[row + 9] += "* * * * * *";
-        }
-    
-    } else if(dir == "e") {
-        
-        string tempCoord = int_to_coord(xc + 1, yc);
-        tempCoord = mapCoordinatePadding(tempCoord);
-        if(col + 6 >= map[row].length()) {
-            map[row] += " //// " + tempCoord;
-            map[row - 2] += "      * * * * * *";
-            map[row - 1] += "      *         *";
-            map[row + 1] += "      *         *";
-            map[row + 2] += "      * * * * * *";
-        } else {
-            map[row].replace(col + 6, 17, " //// " + tempCoord);
-            map[row - 2].replace(col + 6, 17, "      * * * * * *");
-            map[row - 1].replace(col + 6, 17, "      *         *");
-            map[row + 1].replace(col + 6, 17, "      *         *");
-            map[row + 2].replace(col + 6, 17, "      * * * * * *");
-        }
-        
-        
-
-    } else if(dir == "w") {
-        string tempCoord = int_to_coord(xc - 1, yc);
-        tempCoord = mapCoordinatePadding(tempCoord);
-
-        if(col - 5 == 0) {
-            for(int i = 0; i < map.size(); i++) {
-                if(i != row && i != row - 1 && i != row - 2 && i != row + 1 && i != row +2) {
-                    map[i] = "                 " + map[i];
-                }
-            }
-            map[row] = tempCoord + " //// " + map[row];
-            map[row - 2] = "* * * * * *      " + map[row - 2];
-            map[row - 1] = "*         *      " + map[row - 1];
-            map[row + 1] = "*         *      " + map[row + 1];
-            map[row + 2] = "* * * * * *      " + map[row + 2];
-        } else {
-            map[row].replace(col - 22, 17, tempCoord + " //// ");
-            map[row - 2].replace(col - 22, 11, "* * * * * *");
-            map[row - 1].replace(col - 22, 11, "*         *");
-            map[row + 1].replace(col - 22, 11, "*         *");
-            map[row + 2].replace(col - 22, 11, "* * * * * *");
-            
-        }
-
-    }
-}
-
-void addPath(string dir, int xc, int yc) {
-
-    int row;
-    int col;
-    mapSearch(xc, yc, row, col);
-
-
-    if(dir == "n") {
-        if(col + 2 >= map[row - 3].length()) {
-            int i = map[row - 3].length();
-            string tempS = "";
-            while(i != col - 1) {
-                tempS += " ";
-                i++;
-            }
-            map[row - 3] += tempS;
-            map[row - 3] += "| |    ";
-            
-            map[row - 4] += tempS;
-            map[row - 4] += "| |    ";
-        } else {
-            map[row - 3].replace(col - 1, 3, "| |");
-            map[row - 4].replace(col - 1, 3, "| |");
-        }
-
-    } else if(dir == "s") {
-        if(col + 2 >= map[row + 3].length()) {
-            int i = map[row + 3].length();
-            string tempS = "";
-            while(i != col - 1) {
-                tempS += " ";
-                i++;
-            }
-            map[row + 3] += tempS;
-            map[row + 3] += "| |    ";
-            
-            map[row + 4] += tempS;
-            map[row + 4] += "| |    ";
-        } else {
-            map[row + 3].replace(col - 1, 3, "| |");
-            map[row + 4].replace(col - 1, 3, "| |");
-        }
-
-    } else if(dir == "e") {
-        map[row].replace(col + 6, 6, " //// ");
-    } else if(dir == "w") {
-        map[row].replace(col - 11, 6, " //// ");
-    }
-}
-void printMap() {
-    cout << endl << endl;
-    for(int i = 0; i < map.size(); i++) {
-        cout << map[i] << endl;
-    }
-    cout << endl;
-}
-
-
-
 
 int createRoom(string dir, Room* curRoom, int xc, int yc) {
     if(dir == "n") {
@@ -886,14 +681,12 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             if(in == "y") {
                 curRoom->north = tempRoom;
                 tempRoom->south = curRoom;
-                addPath("n", xc, yc);
             } else {
                 return -1;
             }
 
         } catch (const out_of_range& e) {
             curRoom->north = new Room(nullptr, curRoom, nullptr, nullptr, "", {xc, yc+1});
-            addMap("n", xc, yc);
             cout << endl << "Room created at " << "(" << xc << "," << yc + 1 << ")" << endl << endl;
         }
     } else if(dir == "s") {
@@ -919,14 +712,12 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             if(in == "y") {
                 curRoom->south = tempRoom;
                 tempRoom->north = curRoom;
-                addPath("s", xc, yc);
             } else {
                 return -1;
             }
 
         } catch (const out_of_range& e) {
             curRoom->south = new Room(curRoom, nullptr, nullptr, nullptr, "", {xc, yc-1});
-            addMap("s", xc, yc);
             cout << endl << "Room created at " << "(" << xc << "," << yc - 1 << ")" << endl << endl;
         }
         
@@ -953,14 +744,12 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             if(in == "y") {
                 curRoom->east = tempRoom;
                 tempRoom->west = curRoom;
-                addPath("e", xc, yc);
             } else {
                 return -1;
             }
 
         } catch (const out_of_range& e) {
             curRoom->east = new Room(nullptr, nullptr, nullptr, curRoom, "", {xc+1, yc});
-            addMap("e", xc, yc);
             cout << endl << "Room created at " << "(" << xc + 1 << "," << yc << ")" << endl << endl;
         }
     } else if(dir == "w") {
@@ -986,14 +775,12 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             if(in == "y") {
                 curRoom->west = tempRoom;
                 tempRoom->east = curRoom;
-                addPath("w", xc, yc);
             } else {
                 return -1;
             }
 
         } catch (const out_of_range& e) {
             curRoom->west = new Room(nullptr, nullptr, curRoom, nullptr, "", {xc-1, yc});
-            addMap("w", xc, yc);
             cout << endl << "Room created at " << "(" << xc - 1 << "," << yc << ")" << endl << endl;
         }
     } else if(dir != "q"){
@@ -1048,6 +835,7 @@ void optionsMenu() {
     cout << "\tpd - print description of current room" << endl;
     cout << "\tj - jump to coordinate" << endl;
     cout << "\tpc - print current coordinates" << endl;
+    cout << "\te - erase/delete room" << endl;
     cout << "\tmp - current map" << endl;
     cout << "\tr - generate random map" << endl;
     cout << "\ts - save current state" << endl;
@@ -1211,11 +999,10 @@ int main()
                 cout << endl << "Not moved; room does not exist" << endl;
             }
             cout << endl << "Current Position: " << "(" << curX << "," << curY << ")" << endl << endl;
-        } else if(in == "mp") {
-            drawMap(mapName);
+        } else if(in == "pm") {
+            drawMap(mapName, {curX,curY});
             string s = "start " + mapName;
             system(s.c_str());
-            printMap();
         } else if(in == "s") {
             string filename;
             cout << endl << "Enter file name (without extension) to save current game state: ";
@@ -1313,24 +1100,45 @@ int main()
             // removes all whitespace
             in.erase(remove_if(in.begin(), in.end(), ::isspace), in.end());
             while(!isNumber(in) || stoi(in) == 0) {
+                if(in == "q") {
+                    break;
+                }
                 cout << endl << "Invalid input" << endl;
                 cout << endl << "Enter the number of rooms: ";
                 getline(cin, in);
                 // removes all whitespace
                 in.erase(remove_if(in.begin(), in.end(), ::isspace), in.end());
             }
+            if(in != "q") {
+                head = randomMap(stoi(in));
+                cur = head;
+                curX = 0;
+                curY = 0;
+                cout << endl;
+            }
+        } else if(in == "e") {
+            cout << endl << "Enter coordinates of room to delete (cannot be current room): ";
+            getline(cin, in);
+            // removes all whitespace
+            in.erase(remove_if(in.begin(), in.end(), ::isspace), in.end());
 
-            head = randomMap(stoi(in));
-            cur = head;
-            curX = 0;
-            curY = 0;
-            map = {
-                "* * * * * *",
-                "*         *",
-                "*   0,0   *",
-                "*         *",
-                "* * * * * *"
-            };
+            in.erase(remove(in.begin(), in.end(), '('), in.end());
+            in.erase(remove(in.begin(), in.end(), ')'), in.end());
+            
+            while(!coordValidator(in)) {
+                cout << endl << "Invalid input" << endl << endl;
+                cout << endl << "Enter coordinates of room to delete (cannot be current room): ";
+                getline(cin, in);
+                // removes all whitespace
+                in.erase(remove_if(in.begin(), in.end(), ::isspace), in.end());
+
+                in.erase(remove(in.begin(), in.end(), '('), in.end());
+                in.erase(remove(in.begin(), in.end(), ')'), in.end());
+            }
+            int tempX;
+            int tempY;
+            str_to_coord(in, tempX, tempY);
+            deleteRoom({tempX, tempY}, {curX, curY});
         }
     }
     destroyCoordinates();
