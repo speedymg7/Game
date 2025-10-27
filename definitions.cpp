@@ -57,6 +57,12 @@ pair<Coord, char> Key::getKey() {
     return make_pair(coordinate, direction);
 }
 
+Player::~Player() {
+    for(size_t i = 0; i < inventory.size(); i++) {
+        delete inventory[i];
+    }
+}
+
 bool contains(string s1, string s2) {
     for(int i = 0; i < s1.length(); i++) {
         int w = i;
