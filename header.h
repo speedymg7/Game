@@ -59,6 +59,8 @@ public:
     int maxWeight = 100;
     std::vector<Item*> inventory;
     std::vector<Room*> map;
+
+    ~Player();
 };
 
 bool contains(std::string s1, std::string s2);
