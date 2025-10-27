@@ -19,6 +19,8 @@ int main() {
     readState("default.bin", cur, curX, curY);
     Player* player = new Player();
 
+    playerMenu();
+
     while(in != "q") {
         cout << ">> ";
         getline(cin, in);
