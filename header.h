@@ -21,6 +21,7 @@ public:
 
     virtual char getType() = 0;
     virtual std::pair<Coord, char> getKey();
+    virtual ~Item() {}
 };
 
 class Room {
