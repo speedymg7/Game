@@ -91,8 +91,10 @@ void deleteRoom(Coord c, Coord pos) {
         cout << endl << "Cannot delete room; must move to different room" << endl << endl;
         return;
     }
-    try {
-        Room* tempRoom = Room::coordinates.at(c);
+
+    auto findRoom = Room::coordinates.find(c);
+    if(findRoom != Room::coordinates.end()) {
+        Room* tempRoom = findRoom->second;
         if(tempRoom->north != nullptr) {
             tempRoom->north->south = nullptr;
         }
@@ -109,7 +111,7 @@ void deleteRoom(Coord c, Coord pos) {
         Room::coordinates.erase(c);
         cout << endl << "Room at (" << c.x << "," << c.y << ") deleted" << endl << endl;
 
-    } catch(const out_of_range& e) {
+    } else {
         cout << endl << "Cannot delete room; room does not exist" << endl << endl;
         return;
     }
@@ -191,15 +193,17 @@ Room* randomMap(int rooms, mt19937& randGen) {
         if(range(randGen) >= 2) {
             int temp = range(randGen);
             if(temp == 0) {
-                try {
-                    tempRoom = Room::coordinates.at({curX,curY+1});
+                auto findRoom = Room::coordinates.find({curX,curY+1});
+
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->north = tempRoom;
                         tempRoom->south = cur;
                         cur = tempRoom;
                         curY++;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     curY++;
                     cur->north = new Room(nullptr, cur, nullptr, nullptr, "", {curX,curY});
                     cur = cur->north;
@@ -207,15 +211,17 @@ Room* randomMap(int rooms, mt19937& randGen) {
                 }
                 
             } else if(temp == 1) {
-                try {
-                    tempRoom = Room::coordinates.at({curX,curY-1});
+                auto findRoom = Room::coordinates.find({curX,curY-1});
+
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->south = tempRoom;
                         tempRoom->north = cur;
                         cur = tempRoom;
                         curY--;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     curY--;
                     cur->south = new Room(cur, nullptr, nullptr, nullptr, "", {curX,curY});
                     cur = cur->south;
@@ -223,16 +229,17 @@ Room* randomMap(int rooms, mt19937& randGen) {
                 }
 
             } else if(temp == 2) {
+                auto findRoom = Room::coordinates.find({curX+1,curY});
 
-                try {
-                    tempRoom = Room::coordinates.at({curX+1,curY});
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->east = tempRoom;
                         tempRoom->west = cur;
                         cur = tempRoom;
                         curX++;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     curX++;
                     cur->east = new Room(nullptr, nullptr, nullptr, cur, "", {curX,curY});
                     cur = cur->east;
@@ -240,15 +247,17 @@ Room* randomMap(int rooms, mt19937& randGen) {
                 }
 
             } else {
-                try {
-                    tempRoom = Room::coordinates.at({curX-1,curY});
+                auto findRoom = Room::coordinates.find({curX-1,curY});
+
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->west = tempRoom;
                         tempRoom->east = cur;
                         cur = tempRoom;
                         curX--;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     curX--;
                     cur->west = new Room(nullptr, nullptr, cur, nullptr, "", {curX,curY});
                     cur = cur->west;
@@ -259,47 +268,55 @@ Room* randomMap(int rooms, mt19937& randGen) {
         } else {
             int temp = range(randGen);
             if(temp == 0) {
-                try {
-                    tempRoom = Room::coordinates.at({curX,curY+1});
+                auto findRoom = Room::coordinates.find({curX,curY+1});
+
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->north = tempRoom;
                         tempRoom->south = cur;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     cur->north = new Room(nullptr, cur, nullptr, nullptr, "", {curX,curY+1});
                     count++;
                 }
             } else if(temp == 1) {
-                try {
-                    tempRoom = Room::coordinates.at({curX,curY-1});
+                auto findRoom = Room::coordinates.find({curX,curY-1});
+
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->south = tempRoom;
                         tempRoom->north = cur;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     cur->south = new Room(cur, nullptr, nullptr, nullptr, "", {curX,curY-1});
                     count++;
                 }
             } else if(temp == 2) {
-                try {
-                    tempRoom = Room::coordinates.at({curX+1,curY});
+                auto findRoom = Room::coordinates.find({curX+1,curY});
+
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->east = tempRoom;
                         tempRoom->west = cur;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     cur->east = new Room(nullptr, nullptr, nullptr, cur, "", {curX+1,curY});
                     count++;
                 }
 
             } else {
-                try {
-                    tempRoom = Room::coordinates.at({curX-1,curY});
+                auto findRoom = Room::coordinates.find({curX-1,curY});
+
+                if(findRoom != Room::coordinates.end()) {
+                    tempRoom = findRoom->second;
                     if(range(randGen) >= 2) {
                         cur->west = tempRoom;
                         tempRoom->east = cur;
                     }
-                } catch(const out_of_range& e) {
+                } else {
                     cur->west = new Room(nullptr, nullptr, cur, nullptr, "", {curX-1,curY});
                     count++;
                 }   
@@ -462,40 +479,45 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
             ifile.close();
             return;
         }
-        try {
-            tempRoom = Room::coordinates.at({c1,c2});
-        } catch(const out_of_range& e) {
+        auto findRoom = Room::coordinates.find({c1,c2});
+        if(findRoom != Room::coordinates.end()) {
+            tempRoom = findRoom->second;
+        } else {
             tempRoom = new Room(nullptr, nullptr, nullptr, nullptr, "", {c1,c2});
         }
         if(tempRoom->north == nullptr && n == 1) {
-            try {
-                tempRoom->north = Room::coordinates.at({c1,c2+1});
+            findRoom = Room::coordinates.find({c1,c2+1});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->north = findRoom->second;
                 tempRoom->north->south = tempRoom;
-            } catch(const out_of_range& e) {
+            } else {
                 tempRoom->north = new Room(nullptr, tempRoom, nullptr, nullptr, "", {c1,c2+1});
             }
         }
         if(tempRoom->south == nullptr && s == 1) {
-            try {
-                tempRoom->south = Room::coordinates.at({c1,c2-1});
+            findRoom = Room::coordinates.find({c1,c2-1});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->south = findRoom->second;
                 tempRoom->south->north = tempRoom;
-            } catch(const out_of_range& e) {
+            } else {
                 tempRoom->south = new Room(tempRoom, nullptr, nullptr, nullptr, "", {c1,c2-1});
             }
         }
         if(tempRoom->east == nullptr && e == 1) {
-            try {
-                tempRoom->east = Room::coordinates.at({c1+1,c2});
+            findRoom = Room::coordinates.find({c1+1,c2});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->east = findRoom->second;
                 tempRoom->east->west = tempRoom;
-            } catch(const out_of_range& e) {
+            } else {
                 tempRoom->east = new Room(nullptr, nullptr, nullptr, tempRoom, "", {c1+1,c2});
             }
         }
         if(tempRoom->west == nullptr && w == 1) {
-            try {
-                tempRoom->west = Room::coordinates.at({c1-1,c2});
+            findRoom = Room::coordinates.find({c1-1,c2});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->west = findRoom->second;
                 tempRoom->west->east = tempRoom;
-            } catch(const out_of_range& e) {
+            } else {
                 tempRoom->west = new Room(nullptr, nullptr, tempRoom, nullptr, "", {c1-1,c2});
             }
         }
@@ -540,11 +562,13 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
         return;
     }
     ifile.close();
-    try {
-        h = Room::coordinates.at({0,0});
+
+    auto findRoom = Room::coordinates.find({0,0});
+    if(findRoom != Room::coordinates.end()) {
+        h = findRoom->second;
         cx = 0;
         cy = 0;
-    } catch(const out_of_range& e) {
+    } else {
         h = tempRoom;
         cx = c1;
         cy = c2;
@@ -733,8 +757,9 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             cout << endl << "Room already exists at " << "(" << xc << "," << yc + 1 << ")" << endl << endl;
             return -1;
         }
-        try {
-            Room* tempRoom = Room::coordinates.at({xc, yc+1});
+        auto findRoom = Room::coordinates.find({xc, yc+1});
+        if(findRoom != Room::coordinates.end()) {
+            Room* tempRoom = findRoom->second;
             cout << endl << "Room already exists at " << "(" << xc << "," << yc + 1 << ")" << endl;
             cout << endl << "Do you want to add a path between these rooms (y/n)? ";
             string in;
@@ -755,7 +780,7 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
                 return -1;
             }
 
-        } catch (const out_of_range& e) {
+        } else {
             curRoom->north = new Room(nullptr, curRoom, nullptr, nullptr, "", {xc, yc+1});
             cout << endl << "Room created at " << "(" << xc << "," << yc + 1 << ")" << endl << endl;
         }
@@ -764,8 +789,9 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             cout << endl << "Room already exists at " << "(" << xc << "," << yc - 1 << ")" << endl << endl;
             return -1;
         }
-        try {
-            Room* tempRoom = Room::coordinates.at({xc, yc-1});
+        auto findRoom = Room::coordinates.find({xc, yc-1});
+        if(findRoom != Room::coordinates.end()) {
+            Room* tempRoom = findRoom->second;
             cout << endl << "Room already exists at " << "(" << xc << "," << yc - 1 << ")" << endl;
             cout << endl << "Do you want to add a path between these rooms (y/n)? ";
             string in;
@@ -786,18 +812,19 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
                 return -1;
             }
 
-        } catch (const out_of_range& e) {
+        } else {
             curRoom->south = new Room(curRoom, nullptr, nullptr, nullptr, "", {xc, yc-1});
             cout << endl << "Room created at " << "(" << xc << "," << yc - 1 << ")" << endl << endl;
         }
         
-    } else if(dir == "e"){
+    } else if(dir == "e") {
         if(curRoom->east != nullptr) {
             cout << endl << "Room already exists at " << "(" << xc + 1 << "," << yc << ")" << endl << endl;
             return -1;
         }
-        try {
-            Room* tempRoom = Room::coordinates.at({xc+1, yc});
+        auto findRoom = Room::coordinates.find({xc+1, yc});
+        if(findRoom != Room::coordinates.end()) {
+            Room* tempRoom = findRoom->second;
             cout << endl << "Room already exists at " << "(" << xc + 1 << "," << yc << ")" << endl;
             cout << endl << "Do you want to add a path between these rooms (y/n)? ";
             string in;
@@ -818,7 +845,7 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
                 return -1;
             }
 
-        } catch (const out_of_range& e) {
+        } else {
             curRoom->east = new Room(nullptr, nullptr, nullptr, curRoom, "", {xc+1, yc});
             cout << endl << "Room created at " << "(" << xc + 1 << "," << yc << ")" << endl << endl;
         }
@@ -827,8 +854,9 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             cout << endl << "Room already exists at " << "(" << xc - 1 << "," << yc << ")" << endl << endl;
             return -1;
         }
-        try {
-            Room* tempRoom = Room::coordinates.at({xc-1, yc});
+        auto findRoom = Room::coordinates.find({xc-1, yc});
+        if(findRoom != Room::coordinates.end()) {
+            Room* tempRoom = findRoom->second;
             cout << endl << "Room already exists at " << "(" << xc - 1 << "," << yc << ")" << endl;
             cout << endl << "Do you want to add a path between these rooms (y/n)? ";
             string in;
@@ -849,7 +877,7 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
                 return -1;
             }
 
-        } catch (const out_of_range& e) {
+        } else {
             curRoom->west = new Room(nullptr, nullptr, curRoom, nullptr, "", {xc-1, yc});
             cout << endl << "Room created at " << "(" << xc - 1 << "," << yc << ")" << endl << endl;
         }

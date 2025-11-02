@@ -150,16 +150,17 @@ int main() {
                 cout << endl << "Invalid input" << endl << endl;
                 continue;
             }
-            
-            try {
-                int tempX;
-                int tempY;
-                str_to_coord(in, tempX, tempY);
-                cur = Room::coordinates.at({tempX, tempY});
+            int tempX;
+            int tempY;
+            str_to_coord(in, tempX, tempY);
+            auto tempRoom = Room::coordinates.find({tempX, tempY});
+
+            if(tempRoom != Room::coordinates.end()) {
+                cur = tempRoom->second;
                 curX = tempX;
                 curY = tempY;
                 
-            } catch (const out_of_range& e) {
+            } else {
                 cout << endl << "Not moved; room does not exist" << endl;
             }
             cout << endl << "Current Position: " << "(" << curX << "," << curY << ")" << endl << endl;
@@ -431,11 +432,12 @@ int main() {
                 optionsMenu();
                 continue;
             }
-            try {
-                int tempX;
-                int tempY;
-                str_to_coord(in, tempX, tempY);
-                Room* tempRoom = Room::coordinates.at({tempX, tempY});
+            int tempX;
+            int tempY;
+            str_to_coord(in, tempX, tempY);
+            auto findRoom = Room::coordinates.find({tempX, tempY});
+            if(findRoom != Room::coordinates.end()) {
+                Room* tempRoom = findRoom->second;
                 pair<Coord, char> tempKey;
                 if(tempRoom->chest.size() == 0) {
                     tempRoom->chest.push_back(new Key(0, {curX,curY}, dir[0]));
@@ -462,7 +464,7 @@ int main() {
                         break;
                     }
                 }
-            } catch (const out_of_range& e) {
+            } else {
                 if(!alreadyLocked) {
                     cur->locked = cur->locked.substr(0, cur->locked.length() - 1);
                     cout << endl << "Room does not exist; key not generated, door unlocked" << endl;
