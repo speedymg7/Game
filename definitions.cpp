@@ -28,7 +28,7 @@ Item::Item(int w) {
 
 pair<Coord, char> Item::getKey() {}
 
-Room::Room(Room* n, Room* s, Room* e, Room* w, string d, Coord c) {
+Room::Room(Coord c, Room* n, Room* s, Room* e, Room* w, string d) {
     north = n;
     south = s;
     east = e;
@@ -165,7 +165,7 @@ void destroyStronglyConnected(Coord pos) {
 Room* randomMap(int rooms, mt19937& randGen) {
     destroyCoordinates();
     uniform_int_distribution<> range(0, 3);
-    Room* head = new Room(nullptr, nullptr, nullptr, nullptr, "", {0,0});
+    Room* head = new Room();
     Room* cur = head;
     int count = 1;
     int curX = 0;
@@ -205,7 +205,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                     }
                 } else {
                     curY++;
-                    cur->north = new Room(nullptr, cur, nullptr, nullptr, "", {curX,curY});
+                    cur->north = new Room({curX,curY}, nullptr, cur);
                     cur = cur->north;
                     count++;
                 }
@@ -223,7 +223,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                     }
                 } else {
                     curY--;
-                    cur->south = new Room(cur, nullptr, nullptr, nullptr, "", {curX,curY});
+                    cur->south = new Room({curX,curY}, cur);
                     cur = cur->south;
                     count++;
                 }
@@ -241,7 +241,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                     }
                 } else {
                     curX++;
-                    cur->east = new Room(nullptr, nullptr, nullptr, cur, "", {curX,curY});
+                    cur->east = new Room({curX,curY}, nullptr, nullptr, nullptr, cur);
                     cur = cur->east;
                     count++;
                 }
@@ -259,7 +259,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                     }
                 } else {
                     curX--;
-                    cur->west = new Room(nullptr, nullptr, cur, nullptr, "", {curX,curY});
+                    cur->west = new Room({curX,curY}, nullptr, nullptr, cur);
                     cur = cur->west;
                     count++;
                 } 
@@ -277,7 +277,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                         tempRoom->south = cur;
                     }
                 } else {
-                    cur->north = new Room(nullptr, cur, nullptr, nullptr, "", {curX,curY+1});
+                    cur->north = new Room({curX,curY+1}, nullptr, cur);
                     count++;
                 }
             } else if(temp == 1) {
@@ -290,7 +290,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                         tempRoom->north = cur;
                     }
                 } else {
-                    cur->south = new Room(cur, nullptr, nullptr, nullptr, "", {curX,curY-1});
+                    cur->south = new Room({curX,curY-1}, cur);
                     count++;
                 }
             } else if(temp == 2) {
@@ -303,7 +303,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                         tempRoom->west = cur;
                     }
                 } else {
-                    cur->east = new Room(nullptr, nullptr, nullptr, cur, "", {curX+1,curY});
+                    cur->east = new Room({curX+1,curY}, nullptr, nullptr, nullptr, cur);
                     count++;
                 }
 
@@ -317,7 +317,7 @@ Room* randomMap(int rooms, mt19937& randGen) {
                         tempRoom->east = cur;
                     }
                 } else {
-                    cur->west = new Room(nullptr, nullptr, cur, nullptr, "", {curX-1,curY});
+                    cur->west = new Room({curX-1,curY}, nullptr, nullptr, cur);
                     count++;
                 }   
             }
@@ -483,7 +483,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
         if(findRoom != Room::coordinates.end()) {
             tempRoom = findRoom->second;
         } else {
-            tempRoom = new Room(nullptr, nullptr, nullptr, nullptr, "", {c1,c2});
+            tempRoom = new Room({c1,c2});
         }
         if(tempRoom->north == nullptr && n == 1) {
             findRoom = Room::coordinates.find({c1,c2+1});
@@ -491,7 +491,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
                 tempRoom->north = findRoom->second;
                 tempRoom->north->south = tempRoom;
             } else {
-                tempRoom->north = new Room(nullptr, tempRoom, nullptr, nullptr, "", {c1,c2+1});
+                tempRoom->north = new Room({c1,c2+1}, nullptr, tempRoom);
             }
         }
         if(tempRoom->south == nullptr && s == 1) {
@@ -500,7 +500,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
                 tempRoom->south = findRoom->second;
                 tempRoom->south->north = tempRoom;
             } else {
-                tempRoom->south = new Room(tempRoom, nullptr, nullptr, nullptr, "", {c1,c2-1});
+                tempRoom->south = new Room({c1,c2-1}, tempRoom);
             }
         }
         if(tempRoom->east == nullptr && e == 1) {
@@ -509,7 +509,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
                 tempRoom->east = findRoom->second;
                 tempRoom->east->west = tempRoom;
             } else {
-                tempRoom->east = new Room(nullptr, nullptr, nullptr, tempRoom, "", {c1+1,c2});
+                tempRoom->east = new Room({c1+1,c2}, nullptr, nullptr, nullptr, tempRoom);
             }
         }
         if(tempRoom->west == nullptr && w == 1) {
@@ -518,7 +518,7 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
                 tempRoom->west = findRoom->second;
                 tempRoom->west->east = tempRoom;
             } else {
-                tempRoom->west = new Room(nullptr, nullptr, tempRoom, nullptr, "", {c1-1,c2});
+                tempRoom->west = new Room({c1-1,c2}, nullptr, nullptr, tempRoom);
             }
         }
 
@@ -781,7 +781,7 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             }
 
         } else {
-            curRoom->north = new Room(nullptr, curRoom, nullptr, nullptr, "", {xc, yc+1});
+            curRoom->north = new Room({xc, yc+1}, nullptr, curRoom);
             cout << endl << "Room created at " << "(" << xc << "," << yc + 1 << ")" << endl << endl;
         }
     } else if(dir == "s") {
@@ -813,7 +813,7 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             }
 
         } else {
-            curRoom->south = new Room(curRoom, nullptr, nullptr, nullptr, "", {xc, yc-1});
+            curRoom->south = new Room({xc, yc-1}, curRoom);
             cout << endl << "Room created at " << "(" << xc << "," << yc - 1 << ")" << endl << endl;
         }
         
@@ -846,7 +846,7 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             }
 
         } else {
-            curRoom->east = new Room(nullptr, nullptr, nullptr, curRoom, "", {xc+1, yc});
+            curRoom->east = new Room({xc+1, yc}, nullptr, nullptr, nullptr, curRoom);
             cout << endl << "Room created at " << "(" << xc + 1 << "," << yc << ")" << endl << endl;
         }
     } else if(dir == "w") {
@@ -878,7 +878,7 @@ int createRoom(string dir, Room* curRoom, int xc, int yc) {
             }
 
         } else {
-            curRoom->west = new Room(nullptr, nullptr, curRoom, nullptr, "", {xc-1, yc});
+            curRoom->west = new Room({xc-1, yc}, nullptr, nullptr, curRoom);
             cout << endl << "Room created at " << "(" << xc - 1 << "," << yc << ")" << endl << endl;
         }
     } else if(dir != "q"){

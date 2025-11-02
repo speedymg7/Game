@@ -37,7 +37,7 @@ public:
 
     static std::unordered_map<Coord, Room*, CoordHash> coordinates;
 
-    Room(Room* n, Room* s, Room* e, Room* w, std::string d, Coord c);
+    Room(Coord c={0,0}, Room* n=nullptr, Room* s=nullptr, Room* e=nullptr, Room* w=nullptr, std::string d="");
     ~Room();
 };
 

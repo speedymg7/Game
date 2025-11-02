@@ -11,7 +11,7 @@ using namespace std;
 
 int main() {
     string mapName = initializeMap();
-    Room* head = new Room(nullptr, nullptr, nullptr, nullptr, "", {0,0});
+    Room* head = new Room();
     Room* cur = head;
     int curX = 0;
     int curY = 0;
@@ -167,6 +167,7 @@ int main() {
         } else if(in == "pm") {
             drawMap(mapName, {curX,curY});
             openHTML(mapName);
+            cout << endl;
         } else if(in == "s") {
             string filename;
             cout << endl << "Enter file name (without extension) to save current game state: ";
