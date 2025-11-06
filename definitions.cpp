@@ -43,6 +43,30 @@ Room::~Room() {
     }
 }
 
+uint64_t PlayerRoom::getByteOffset() {
+    return byteOffset;
+}
+
+void PlayerRoom::setByteOffset(uint64_t b) {
+    byteOffset = b;
+}
+
+bool* PlayerRoom::getDisplayDir() {
+    return displayDir;
+}
+
+void PlayerRoom::setDisplayDir(bool a[2]) {
+    displayDir[0] = a[0];
+    displayDir[1] = a[1];
+}
+
+void PlayerRoom::setNDisplayDir(bool a) {
+    displayDir[0] = a;
+}
+
+void PlayerRoom::setEDisplayDir(bool a) {
+    displayDir[1] = a;
+}
 
 Key::Key(int w, Coord c, char d) : Item(w) {
     coordinate = c;
@@ -361,7 +385,6 @@ void saveState(string fileName) {
     ofstream ofile(fileName, ios::binary);
     if(!ofile) {
         cout << endl << "Error opening file" << endl << endl;
-        ofile.close();
         return;
     }
 
@@ -429,7 +452,6 @@ void saveState(string fileName) {
 
         if(!ofile) {
             cout << endl << "Error writing to file" << endl << endl;
-            ofile.close();
             return;
         }
         
@@ -448,7 +470,6 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
 
     if(!ifile) {
         cout << endl << "Error opening file" << endl << endl;
-        ifile.close();
         return;
     }
     int c1;
@@ -476,7 +497,6 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
 
         if(!ifile) {
             cout << endl << "Error reading the file" << endl << endl;
-            ifile.close();
             return;
         }
         auto findRoom = Room::coordinates.find({c1,c2});
@@ -536,7 +556,6 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
             }
             if(!ifile) {
                 cout << endl << "Error reading the file" << endl << endl;
-                ifile.close();
                 return;
             }
         }
@@ -553,7 +572,141 @@ void readState(string fileName, Room*& h, int& cx, int& cy) {
 
         if(!ifile) {
             cout << endl << "Error reading the file" << endl << endl;
-            ifile.close();
+            return;
+        }
+    }
+    if(!ifile.eof()) {
+        cout << endl << "File reading error occurred" << endl << endl;
+        return;
+    }
+    ifile.close();
+
+    auto findRoom = Room::coordinates.find({0,0});
+    if(findRoom != Room::coordinates.end()) {
+        h = findRoom->second;
+        cx = 0;
+        cy = 0;
+    } else {
+        h = tempRoom;
+        cx = c1;
+        cy = c2;
+    }
+    cout << endl << fileName << " loaded successfully" << endl;
+    cout << endl << "Current Position: (" << cx << "," << cy << ")" << endl << endl;
+}
+
+void readPlayerState(string fileName, Room*& h, int& cx, int& cy) {
+
+    if(!Room::coordinates.empty()) {
+        cout << endl << "Hashmap still contains rooms; hashmap must be empty before readState()" << endl << endl;
+        return;
+    }
+    ifstream ifile(fileName, ios::binary);
+
+    if(!ifile) {
+        cout << endl << "Error opening file" << endl << endl;
+        return;
+    }
+    int c1;
+    int c2;
+    int k1;
+    int k2;
+    uint8_t n;
+    uint8_t s;
+    uint8_t e;
+    uint8_t w;
+    Item* itemPtr;
+    char type;
+    size_t chestSize;
+    size_t lockedSize;
+    size_t len;
+    Room* tempRoom;
+
+    while(ifile.read(reinterpret_cast<char*>(&c1), sizeof(c1))) {
+        ifile.read(reinterpret_cast<char*>(&c2), sizeof(c2));
+        ifile.read(reinterpret_cast<char*>(&n), sizeof(n));
+        ifile.read(reinterpret_cast<char*>(&s), sizeof(s));
+        ifile.read(reinterpret_cast<char*>(&e), sizeof(e));
+        ifile.read(reinterpret_cast<char*>(&w), sizeof(w));
+        ifile.read(reinterpret_cast<char*>(&chestSize), sizeof(chestSize));
+
+        if(!ifile) {
+            cout << endl << "Error reading the file" << endl << endl;
+            return;
+        }
+        auto findRoom = Room::coordinates.find({c1,c2});
+        if(findRoom != Room::coordinates.end()) {
+            tempRoom = findRoom->second;
+        } else {
+            tempRoom = new PlayerRoom({c1,c2});
+        }
+        if(tempRoom->north == nullptr && n == 1) {
+            findRoom = Room::coordinates.find({c1,c2+1});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->north = findRoom->second;
+                tempRoom->north->south = tempRoom;
+            } else {
+                tempRoom->north = new PlayerRoom({c1,c2+1}, nullptr, tempRoom);
+            }
+        }
+        if(tempRoom->south == nullptr && s == 1) {
+            findRoom = Room::coordinates.find({c1,c2-1});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->south = findRoom->second;
+                tempRoom->south->north = tempRoom;
+            } else {
+                tempRoom->south = new PlayerRoom({c1,c2-1}, tempRoom);
+            }
+        }
+        if(tempRoom->east == nullptr && e == 1) {
+            findRoom = Room::coordinates.find({c1+1,c2});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->east = findRoom->second;
+                tempRoom->east->west = tempRoom;
+            } else {
+                tempRoom->east = new PlayerRoom({c1+1,c2}, nullptr, nullptr, nullptr, tempRoom);
+            }
+        }
+        if(tempRoom->west == nullptr && w == 1) {
+            findRoom = Room::coordinates.find({c1-1,c2});
+            if(findRoom != Room::coordinates.end()) {
+                tempRoom->west = findRoom->second;
+                tempRoom->west->east = tempRoom;
+            } else {
+                tempRoom->west = new PlayerRoom({c1-1,c2}, nullptr, nullptr, tempRoom);
+            }
+        }
+
+
+        for(size_t i = 0; i < chestSize; i++) {
+            ifile.read(&type, 1);
+
+            if(type == 'K') {
+                char direction;
+                ifile.read(reinterpret_cast<char*>(&k1), sizeof(k1));
+                ifile.read(reinterpret_cast<char*>(&k2), sizeof(k2));
+                ifile.read(&direction, 1);
+
+                tempRoom->chest.push_back(new Key(0, {k1, k2}, direction));
+            }
+            if(!ifile) {
+                cout << endl << "Error reading the file" << endl << endl;
+                return;
+            }
+        }
+        ifile.read(reinterpret_cast<char*>(&lockedSize), sizeof(lockedSize));
+        string locked(lockedSize, '\0');
+        ifile.read(&locked[0], lockedSize);
+        tempRoom->locked = locked;
+
+
+        ifile.read(reinterpret_cast<char*>(&len), sizeof(len));
+        string s(len, '\0');
+        ifile.read(&s[0], len);
+        tempRoom->description = s;
+
+        if(!ifile) {
+            cout << endl << "Error reading the file" << endl << endl;
             return;
         }
     }
@@ -627,12 +780,47 @@ bool coordValidator(string t) {
 }
 
 
-string initializeMap() {
+string initializeMap(Player* p, Coord c, Room* cur, int roomSide, int hallLength, int hallWidth, int wLine, string color) {
     if(!filesystem::exists("mapTemplate.html")) {
         cout << "Error: mapTemplate.html does not exist";
         destroyCoordinates();
+        delete p;
         exit(EXIT_FAILURE);
     }
+    filesystem::resize_file("mapTemplate.html", 4228);
+    fstream file("mapTemplate.html", ios::app);
+    if(!file) {
+        cout << endl << "Error initializing map";
+        file.close();
+        destroyCoordinates();
+        delete p;
+        exit(EXIT_FAILURE);
+    }
+    file << "    let roomSide = " << roomSide << ";" << endl;
+    file << "    let hallLength = " << hallLength << ";" << endl;
+    file << "    let hallWidth = " << hallWidth << ";" << endl;
+    file << "    let wLine = " << wLine << ";" << endl;
+    file << "    let color = \"" << color << "\";" << endl;
+    file << "    let centerX = Math.floor(canvas.width / 2) - roomSide / 2;" << endl;
+    file << "    let centerY = Math.floor(canvas.height / 2) - roomSide / 2;" << endl;
+    file << "    let fontSize = roomSide / 6;" << endl;
+    file << "    ctx.font = fontSize.toString() + \"px Arial\";" << endl;
+    file << "    ctx.fillStyle = \"" << color << "\";" << endl;
+    file << "    ctx.textAlign = \"center\";" << endl;
+    file << "    ctx.textBaseline = \"middle\";" << endl;
+    file << "    ctx.stroke();" << endl;
+    file << "  }" << endl << "  var mapCX = " << c.x << ";" << endl << "  var mapCY = " << c.y << ";" << endl << "  draw();" << endl;
+    file << "</script>" << endl << "</body>" << endl << "</html>";
+
+    if(!file) {
+        cout << endl << "Error initializing map";
+        file.close();
+        destroyCoordinates();
+        delete p;
+        exit(EXIT_FAILURE);
+    }
+    file.close();
+
     string fileName = "map.html";
     if(filesystem::exists(fileName)) {
         fileName = "map-1.html";
@@ -647,13 +835,76 @@ string initializeMap() {
     } catch(const filesystem::filesystem_error& e) {
         cout << "Error duplicating mapTemplate.html";
         destroyCoordinates();
+        delete p;
         exit(EXIT_FAILURE);
+    }
+    if(p != nullptr) {
+        if(cur == nullptr) {
+            cout << endl << "Error making map";
+            destroyCoordinates();
+            delete p;
+            exit(EXIT_FAILURE);
+        }
+        if(Room::coordinates.find(c) == Room::coordinates.end()) {
+            cout << endl << "Error making map";
+            destroyCoordinates();
+            delete p;
+            exit(EXIT_FAILURE);
+        }
+        uintmax_t fileSize = filesystem::file_size(fileName);
+        filesystem::resize_file(fileName, fileSize - 67);
+        ifstream inFile(fileName);
+        char lastC;
+        inFile.seekg(-1, std::ios::end); 
+        inFile.get(lastC);
+        fileSize -= 67;
+        while(lastC != '}') {
+            filesystem::resize_file(fileName, fileSize - 1);
+            fileSize--;
+            inFile.seekg(-1, std::ios::end); 
+            inFile.get(lastC);
+        }
+
+        inFile.close();
+
+        filesystem::resize_file(fileName, fileSize - 22);
+        fileSize -= 22;
+
+        cur->setByteOffset(fileSize);
+
+        fstream mapFile(fileName, ios::app);
+        if(!mapFile) {
+            cout << endl << "Error initializing map";
+            mapFile.close();
+            destroyCoordinates();
+            delete p;
+            exit(EXIT_FAILURE);
+        }
+        
+        string offsetX = "(" + to_string(c.x) + " - mapCX) * (2 * hallLength + roomSide)";
+        string offsetY = "(" + to_string(c.y) + " - mapCY) * (2 * hallLength + roomSide)";
+
+        mapFile << "    drawRoom(0, 0, 0, 0, centerX + " << offsetX << ", centerY - " << offsetY;
+        mapFile << ", roomSide, hallLength, hallWidth, wLine, color);" << endl;
+        mapFile << "    ctx.fillText(\"(" << c.x << "," << c.y << ")\", ";
+        mapFile << "centerX + roomSide / 2 + " << offsetX << ", centerY + roomSide / 2 - " << offsetY << ");" << endl;
+        mapFile << "    ctx.stroke();" << endl;
+        mapFile << "  }" << endl << "  var mapCX = " << c.x << ";" << endl << "  var mapCY = " << c.y << ";" << endl << "  draw();" << endl;
+        mapFile << "</script>" << endl << "</body>" << endl << "</html>";
+        if(!mapFile) {
+            cout << endl << "Error initializing map";
+            mapFile.close();
+            destroyCoordinates();
+            delete p;
+            exit(EXIT_FAILURE);
+        }
+        mapFile.close();
     }
     return fileName;
 }
 
 
-void drawMap(string fileName, Coord center, int roomSide, int hallLength, int hallWidth, int wLine, string color) {
+void drawMap(string fileName, Coord center) {
     if(!filesystem::exists(fileName)) {
         cout << endl << "Error: " << fileName << " does not exist" << endl << endl;
         return;
@@ -665,48 +916,41 @@ void drawMap(string fileName, Coord center, int roomSide, int hallLength, int ha
         return;
     }
     uintmax_t fileSize = filesystem::file_size(fileName);
-    if(fileSize <= 57) {
+    if(fileSize <= 67) {
         cout << endl << "Error: contents of map are invalid" << endl << endl;
         return;
     }
-    filesystem::resize_file(fileName, fileSize - 57);
+    filesystem::resize_file(fileName, fileSize - 67);
+    ifstream inFile(fileName);
+    char lastC;
+    inFile.seekg(-1, std::ios::end); 
+    inFile.get(lastC);
+    fileSize -= 67;
+    while(lastC != '}') {
+        filesystem::resize_file(fileName, fileSize - 1);
+        fileSize--;
+        inFile.seekg(-1, std::ios::end); 
+        inFile.get(lastC);
+    }
+    
+    inFile.close();
+    filesystem::resize_file(fileName, fileSize - 22);
 
     fstream file(fileName, ios::app);
     if(!file) {
         cout << endl << "Error opening file" << endl << endl;
-        file.close();
-        return;
-    }
-
-    file << "    let roomSide = " << roomSide << ";" << endl;
-    file << "    let hallLength = " << hallLength << ";" << endl;
-    file << "    let hallWidth = " << hallWidth << ";" << endl;
-    file << "    let wLine = " << wLine << ";" << endl;
-    file << "    let color = \"" << color << "\";" << endl;
-    file << "    let centerX = Math.floor(canvas.width / 2) - roomSide / 2;" << endl;
-    file << "    let centerY = Math.floor(canvas.height / 2) - roomSide / 2;" << endl;
-    file << "    let fontSize = roomSide / 6;" << endl;
-    file << "    ctx.font = fontSize.toString() + \"px Arial\";" << endl;
-    file << "    ctx.fillStyle = \"" << color << "\";" << endl;
-    file << "    ctx.textAlign = \"center\";" << endl;
-    file << "    ctx.textBaseline = \"middle\";" << endl;
-
-    if(!file) {
-        cout << endl << "Error writing to map file" << endl << endl;
-        file.close();
         return;
     }
 
     if(Room::coordinates.find(center) == Room::coordinates.end()) {
         cout << endl << "Center coordinates do not exist in coordinates map; map not made" << endl << endl;
-        file.close();
         return;
     }
-    int offsetX;
-    int offsetY;
+    string offsetX;
+    string offsetY;
     for(const auto& pair : Room::coordinates) {
-        offsetX = (pair.first.x - center.x) * (2 * hallLength + roomSide);
-        offsetY = (pair.first.y - center.y) * (2 * hallLength + roomSide);
+        offsetX = "(" + to_string(pair.first.x) + " - mapCX) * (2 * hallLength + roomSide)";
+        offsetY = "(" + to_string(pair.first.y) + " - mapCY) * (2 * hallLength + roomSide)";
         file << "    drawRoom(";
         if(pair.second->north == nullptr) {
             file << "0, ";
@@ -736,12 +980,11 @@ void drawMap(string fileName, Coord center, int roomSide, int hallLength, int ha
 
         if(!file) {
             cout << endl << "Error writing to map file" << endl << endl;
-            file.close();
             return;
         }
     }
     file << "    ctx.stroke();" << endl;
-    file << "  }" << endl << "  draw();" << endl;
+    file << "  }" << endl << "  var mapCX = " << center.x << ";" << endl << "  var mapCY = " << center.y << ";" << endl << "  draw();" << endl;
     file << "</script>" << endl << "</body>" << endl << "</html>";
 
 
@@ -749,6 +992,200 @@ void drawMap(string fileName, Coord center, int roomSide, int hallLength, int ha
         cout << endl << "Error writing to map file" << endl << endl;
     }
     file.close();
+}
+
+void updatePlayerHalls(string fileName, char dir, Room* cur) {
+    if(!filesystem::exists(fileName)) {
+        cout << endl << "Error: " << fileName << " does not exist" << endl << endl;
+        return;
+    }
+    if(cur == nullptr) {
+        cout << endl << "Error: room does not exist" << endl << endl;
+        return;
+    }
+    if(cur->getByteOffset() == 0) {
+        cout << endl << "Error: room must be displayed before updating halls" << endl << endl;
+        return;
+    }
+    if(dir == 'n') {
+        if(cur->north == nullptr) {
+            cout << endl << "Error: room does not exist in given direction" << endl << endl;
+            return;
+        }
+        fstream file(fileName, std::ios::in | std::ios::out | std::ios::binary);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.seekp(cur->getByteOffset() + 13);
+        char writeC = '1';
+        file.write(&writeC, 1);
+
+        cur = cur->north;
+        file.seekp(cur->getByteOffset() + 16);
+        file.write(&writeC, 1);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.close();
+        cur = cur->south;
+        cur->setNDisplayDir(true);
+    } else if(dir == 's') {
+        if(cur->south == nullptr) {
+            cout << endl << "Error: room does not exist in given direction" << endl << endl;
+            return;
+        }
+        fstream file(fileName, std::ios::in | std::ios::out | std::ios::binary);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.seekp(cur->getByteOffset() + 16);
+        char writeC = '1';
+        file.write(&writeC, 1);
+
+        cur = cur->south;
+        file.seekp(cur->getByteOffset() + 13);
+        file.write(&writeC, 1);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.close();
+        cur->setNDisplayDir(true);
+    } else if(dir == 'e') {
+        if(cur->east == nullptr) {
+            cout << endl << "Error: room does not exist in given direction" << endl << endl;
+            return;
+        }
+        fstream file(fileName, std::ios::in | std::ios::out | std::ios::binary);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.seekp(cur->getByteOffset() + 19);
+        char writeC = '1';
+        file.write(&writeC, 1);
+
+        cur = cur->east;
+        file.seekp(cur->getByteOffset() + 22);
+        file.write(&writeC, 1);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.close();
+        cur = cur->west;
+        cur->setEDisplayDir(true);
+    } else if(dir == 'w') {
+        if(cur->west == nullptr) {
+            cout << endl << "Error: room does not exist in given direction" << endl << endl;
+            return;
+        }
+        fstream file(fileName, std::ios::in | std::ios::out | std::ios::binary);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.seekp(cur->getByteOffset() + 22);
+        char writeC = '1';
+        file.write(&writeC, 1);
+
+        cur = cur->west;
+        file.seekp(cur->getByteOffset() + 19);
+        file.write(&writeC, 1);
+        if(!file) {
+            cout << endl << "Error updating halls" << endl << endl;
+            return;
+        }
+        file.close();
+        cur->setEDisplayDir(true);
+    }
+}
+
+void updatePlayerMap(string fileName, Coord c, char dir, Room* cur) {
+    if(!filesystem::exists(fileName)) {
+        cout << endl << "Error: " << fileName << " does not exist" << endl << endl;
+        return;
+    }
+    if(cur == nullptr) {
+        cout << endl << "Error: room does not exist" << endl << endl;
+        return;
+    }
+    if(cur->getByteOffset() == 0) {
+        uintmax_t fileSize = filesystem::file_size(fileName);
+        if(fileSize <= 67) {
+            cout << endl << "Error: contents of map are invalid" << endl << endl;
+            return;
+        }
+        filesystem::resize_file(fileName, fileSize - 67);
+
+        ifstream inFile(fileName);
+        char lastC;
+        inFile.seekg(-1, std::ios::end); 
+        inFile.get(lastC);
+        fileSize -= 67;
+        while(lastC != '}') {
+            filesystem::resize_file(fileName, fileSize - 1);
+            fileSize--;
+            inFile.seekg(-1, std::ios::end); 
+            inFile.get(lastC);
+        }
+        
+        inFile.close();
+        filesystem::resize_file(fileName, fileSize - 22);
+        fileSize -= 22;
+
+        cur->setByteOffset(fileSize);
+
+        fstream file(fileName, ios::app);
+        if(!file) {
+            cout << endl << "Error opening file" << endl << endl;
+            return;
+        }
+        string offsetX = "(" + to_string(c.x) + " - mapCX) * (2 * hallLength + roomSide)";
+        string offsetY = "(" + to_string(c.y) + " - mapCY) * (2 * hallLength + roomSide)";
+        file << "    drawRoom(";
+        if(dir == 'n') {
+            file << "1, 0, 0, 0, ";
+        } else if(dir == 's') {
+            file << "0, 1, 0, 0, ";
+        } else if(dir == 'e') {
+            file << "0, 0, 1, 0, ";
+        } else if(dir == 'w') {
+            file << "0, 0, 0, 1, ";
+        }
+        if(!file) {
+            cout << endl << "Error writing to map file" << endl << endl;
+            return;
+        }
+        file.close();
+        updatePlayerHalls(fileName, dir, cur);
+
+        file.open(fileName, ios::app);
+
+        //drawRoom(n, s, e, w, cx, cy, roomSide, hallLength, hallWidth, wLine, color)
+        file << "centerX + " << offsetX <<  ", " << "centerY - " << offsetY << ", roomSide, ";
+        file << "hallLength, hallWidth, wLine, color);" << endl;
+        file << "    ctx.fillText(\"(" << c.x << "," << c.y << ")\", ";
+        file << "centerX + roomSide / 2 + " << offsetX << ", centerY + roomSide / 2 - " << offsetY << ");" << endl;
+        file << "    ctx.stroke();" << endl;
+        file << "  }" << endl << "  var mapCX = " << c.x << ";" << endl << "  var mapCY = " << c.y << ";" << endl << "  draw();" << endl;
+        file << "</script>" << endl << "</body>" << endl << "</html>";
+
+        if(!file) {
+            cout << endl << "Error writing to map file" << endl << endl;
+            return;
+        }
+        file.close();
+
+    } else if((dir == 'n' && !cur->getDisplayDir()[0]) ||
+              (dir == 's' && !cur->south->getDisplayDir()[0]) ||
+              (dir == 'e' && !cur->getDisplayDir()[1]) ||
+              (dir == 'w' && !cur->west->getDisplayDir()[1])) {
+        updatePlayerHalls(fileName, dir, cur);
+    }
 }
 
 int createRoom(string dir, Room* curRoom, int xc, int yc) {

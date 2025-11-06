@@ -11,13 +11,13 @@
 using namespace std;
 
 int main() {
-    string mapName = initializeMap();
     Room* cur;
     int curX;
     int curY;
     string in;
-    readState("default.bin", cur, curX, curY);
+    readPlayerState("default.bin", cur, curX, curY);
     Player* player = new Player();
+    string mapName = initializeMap(player, {curX, curY}, cur);
 
     playerMenu();
 
@@ -67,6 +67,7 @@ int main() {
                             if(tpair.first.x == curX && tpair.first.y == curY+1 && tpair.second == 's') {
                                 cur = cur->north;
                                 curY++;
+                                updatePlayerMap(mapName, {curX, curY}, 's', cur);
                                 cout << endl << "Door unlocked with key in inventory" << endl;
                                 cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                                 break;
@@ -79,6 +80,7 @@ int main() {
                 } else {
                     cur = cur->north;
                     curY++;
+                    updatePlayerMap(mapName, {curX, curY}, 's', cur);
                     cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                 }
             } else if(in == "mvs") {
@@ -94,6 +96,7 @@ int main() {
                             if(tpair.first.x == curX && tpair.first.y == curY-1 && tpair.second == 'n') {
                                 cur = cur->south;
                                 curY--;
+                                updatePlayerMap(mapName, {curX, curY}, 'n', cur);
                                 cout << endl << "Door unlocked with key in inventory" << endl;
                                 cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                                 break;
@@ -106,6 +109,7 @@ int main() {
                 } else {
                     cur = cur->south;
                     curY--;
+                    updatePlayerMap(mapName, {curX, curY}, 'n', cur);
                     cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                 }
             } else if(in == "mve") {
@@ -121,6 +125,7 @@ int main() {
                             if(tpair.first.x == curX+1 && tpair.first.y == curY && tpair.second == 'w') {
                                 cur = cur->east;
                                 curX++;
+                                updatePlayerMap(mapName, {curX, curY}, 'w', cur);
                                 cout << endl << "Door unlocked with key in inventory" << endl;
                                 cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                                 break;
@@ -133,6 +138,7 @@ int main() {
                 } else {
                     cur = cur->east;
                     curX++;
+                    updatePlayerMap(mapName, {curX, curY}, 'w', cur);
                     cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                 }
             } else if(in == "mvw") {
@@ -148,6 +154,7 @@ int main() {
                             if(tpair.first.x == curX-1 && tpair.first.y == curY && tpair.second == 'e') {
                                 cur = cur->west;
                                 curX--;
+                                updatePlayerMap(mapName, {curX, curY}, 'e', cur);
                                 cout << endl << "Door unlocked with key in inventory" << endl;
                                 cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                                 break;
@@ -160,13 +167,13 @@ int main() {
                 } else {
                     cur = cur->west;
                     curX--;
+                    updatePlayerMap(mapName, {curX, curY}, 'e', cur);
                     cout << endl << "Current position: (" << curX << "," << curY << ")" << endl;
                 }
             } else {
                 cout << endl << "Invalid input; not moved" << endl;
             }
         } else if(in == "pm") {
-            drawMap(mapName, {curX,curY});
             openHTML(mapName);
         } else if(in == "pc") {
             cout << endl << curX << "," << curY << endl;
